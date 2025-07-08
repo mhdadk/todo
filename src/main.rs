@@ -56,11 +56,22 @@ impl TodoApp {
             due_datetime: due_datetime,
             completed: false,
         };
+        self.tasks.push(task);
+        Ok(())
     }
     fn modify(&self, task_id: i32, task_details: Task) -> Result<(), String> {}
+    fn mark_as_completed(&mut self, id: i32) -> Result<(), &str> {
+        for task in &mut self.tasks {
+            if task.id == id {
+                task.completed = true;
+                return Ok(());
+            }
+        }
+        Err("Could not find task.")
+    }
     fn delete(&self, task_id: i32) -> Result<(), String> {}
     fn display(&self) -> () {}
-    fn run(self) -> () {
+    fn run(self) -> ! {
         loop {
             println!(
                 "Choose one of the following options by entering the number corresponding to it and pressing enter:"
@@ -77,7 +88,9 @@ impl TodoApp {
             let opt: i32 = input.parse().expect("Could not parse input.");
             match opt {
                 1 => self.add(),
-            }
+                2 => self.mark_as_completed(),
+                _ => Ok(()),
+            };
         }
     }
 }
