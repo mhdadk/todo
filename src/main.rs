@@ -151,12 +151,32 @@ impl TodoApp {
                 .expect("Input could not be read.");
             let opt: i32 = input.trim().parse().expect("Could not parse input.");
             match opt {
-                1 => self.add(),
-                2 => self.mark_as_completed(),
-                3 => self.modify(),
-                4 => self.delete(),
-                5 => self.display(),
-                _ => return Err("Incorrect input. please try again.".to_string()),
+                1 => {
+                    if let Err(e) = self.add() {
+                        eprintln!("Error adding new task: {}", e);
+                    }
+                }
+                2 => {
+                    if let Err(e) = self.mark_as_completed() {
+                        eprintln!("Error marking task as completed: {}", e);
+                    }
+                }
+                3 => {
+                    if let Err(e) = self.modify() {
+                        eprintln!("Error modifying task: {}", e);
+                    }
+                }
+                4 => {
+                    if let Err(e) = self.delete() {
+                        eprintln!("Error deleting task: {}", e);
+                    }
+                }
+                5 => {
+                    if let Err(e) = self.display() {
+                        eprintln!("Error showing tasks: {}", e);
+                    }
+                }
+                _ => eprintln!("Invalid input. Please try again."),
             };
         }
     }
