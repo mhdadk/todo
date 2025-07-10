@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use std::io;
+use std::io::{self, Write};
 
 struct Task {
     id: i32,
@@ -10,91 +10,95 @@ struct Task {
 
 struct TodoApp {
     tasks: Vec<Task>,
+    next_id: i32,
 }
 
 impl TodoApp {
     fn new() -> Self {
-        Self { tasks: Vec::new() }
-    }
-    fn gather_info(&self, opt: i32) -> Task {
-        match opt {
-            1 => {
-                let h = io::stdin();
-                println!("Let's create a new task. First, the description: ");
-                let mut description = String::new();
-                h.read_line(description).expect("Cannot read input: ");
-                println!("Next, the date and time the task is due: ");
-                let mut due_datetime = String::new();
-                h.read_line(due_datetime).expect("Cannot read input: ");
-                let due_datetime = DateTime::parse_from_rfc3339(due_datetime.as_str())
-                    .unwrap()
-                    .with_timezone(&Utc);
-                Task {
-                    id: 0,
-                    description: description,
-                    due_datetime: due_datetime,
-                    completed: false,
-                }
-            }
-            2 => {}
+        Self {
+            tasks: Vec::new(),
+            next_id: 0,
         }
     }
-    fn add(&self) -> Result<(), String> {
-        let h = io::stdin();
+    fn add(&mut self) -> Result<(), String> {
         print!("Let's create a new task. First, the description: ");
+        io::stdout().flush().unwrap();
         let mut description = String::new();
-        h.read_line(description).expect("Cannot read input: ");
+        io::stdin()
+            .read_line(&mut description)
+            .expect("Cannot read input: ");
         print!("Next, the date and time the task is due (in RFC3339 format): ");
+        io::stdout().flush().unwrap();
         let mut due_datetime = String::new();
-        h.read_line(due_datetime).expect("Cannot read input: ");
+        io::stdin()
+            .read_line(&mut due_datetime)
+            .expect("Cannot read input: ");
         let due_datetime = DateTime::parse_from_rfc3339(due_datetime.as_str())
-            .unwrap()
+            .map_err(|_| "Invalid datetime format.".to_string())?
             .with_timezone(&Utc);
         let task = Task {
-            id: 0,
+            id: self.next_id,
             description: description,
             due_datetime: due_datetime,
             completed: false,
         };
         self.tasks.push(task);
+        self.next_id += 1;
         Ok(())
     }
-    fn modify(&self) -> Result<(), String> {
-        print!("Enter id for the task that you would like to modify: ")
+    fn modify(&mut self) -> Result<(), String> {
+        print!("Enter id for the task that you would like to modify: ");
+        // flush stdout buffer so that the line above prints before asking for user
+        // input
+        io::stdout().flush().unwrap();
+
         let mut input = String::new();
-        io::stdin().read_line(&mut input);
-        let id: i32 = input.parse().unwrap();
-        // check that task with this id exists
-        let task_exists = false;
-        for t in &mut self.tasks {
-            if t.id == id {
-                let task = t;
-                task_exists = true;
-            }
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+        let id: i32 = input
+            .trim()
+            .parse()
+            .map_err(|_| "Invalid id input".to_string())?;
+
+        // need the .iter_mut() instead of .iter() so that task_opt is &mut T and not
+        // &T so that task can be modified later
+        let task_opt = self.tasks.iter_mut().find(|task| task.id == id);
+        let task = match task_opt {
+            Some(x) => x,
+            None => return Err("Could not find task.".to_string()),
+        };
+
+        input.clear();
+        print!("Enter new task description (leave empty if unchanged): ");
+        io::stdout().flush().unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+        let new_desc = input.trim();
+        if !new_desc.is_empty() {
+            task.description = new_desc.to_string();
         }
-        if !task_exists {
-            return Err("Could not find task.");
+
+        input.clear();
+        print!("Enter new task due date and time in RFC3339 format (leave empty if unchanged): ");
+        io::stdout().flush().unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+        let new_due = input.trim();
+        if !new_due.is_empty() {
+            task.due_datetime = DateTime::parse_from_rfc3339(new_due)
+                .map_err(|_| "Invalid date format.".to_string())?
+                .with_timezone(&Utc);
         }
-        print!("Enter new task description (leave empty if unchanged): ")
-        input.clear()
-        io::stdin().read_line(&mut input);
-        if input != "" {
-            task.description = input;
-        }
-        print!("Enter new task due date and time in RFC3339 format (leave empty if unchanged): ")
-        input.clear()
-        io::stdin().read_line(&mut input);
-        if input != "" {
-            let due_datetime = DateTime::parse_from_rfc3339(input.as_str())
-            .unwrap()
-            .with_timezone(&Utc);
-            task.due_datetime = due_datetime;
-        }
+
         Ok(())
     }
-    fn mark_as_completed(&mut self) -> Result<(), &str> {
+    fn mark_as_completed(&mut self) -> Result<(), String> {
         // get task id from user
-        print!("Enter id for the task that you would like to mark as completed: ")
+        print!("Enter id for the task that you would like to mark as completed: ");
+        io::stdout().flush().unwrap();
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
@@ -107,13 +111,31 @@ impl TodoApp {
                 return Ok(());
             }
         }
-        Err("Could not find task.")
+        Err("Could not find task.".to_string())
     }
-    fn delete(&self) -> Result<(), String> {
-        // TODO
+    fn delete(&mut self) -> Result<(), String> {
+        print!("Enter id for the task that you would like to delete: ");
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .map_err(|_| "Input could not be read.")?;
+        let id: i32 = input.parse().unwrap();
+        self.tasks.retain(|task| task.id != id);
+        Ok(())
     }
-    fn display(&self) -> () {}
-    fn run(self) -> ! {
+    fn display(&self) -> Result<(), String> {
+        for task in &self.tasks {
+            println!("Task {}", task.id);
+            println!("Task description: {}", task.description);
+            println!("Task due date and time {}", task.due_datetime);
+            println!("Completed? {}", if task.completed { "Yes" } else { "No" });
+            println!("====================================")
+        }
+        io::stdout().flush().unwrap();
+        Ok(())
+    }
+    fn run(&mut self) -> Result<(), String> {
         loop {
             println!(
                 "Choose one of the following options by entering the number corresponding to it and pressing enter:"
@@ -127,19 +149,20 @@ impl TodoApp {
             io::stdin()
                 .read_line(&mut input)
                 .expect("Input could not be read.");
-            let opt: i32 = input.parse().expect("Could not parse input.");
+            let opt: i32 = input.trim().parse().expect("Could not parse input.");
             match opt {
                 1 => self.add(),
                 2 => self.mark_as_completed(),
                 3 => self.modify(),
                 4 => self.delete(),
-                _ => Ok(()),
+                5 => self.display(),
+                _ => return Err("Incorrect input. please try again.".to_string()),
             };
         }
     }
 }
 
 fn main() {
-    let app = TodoApp::new();
+    let mut app = TodoApp::new();
     app.run();
 }
