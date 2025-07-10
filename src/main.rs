@@ -33,8 +33,8 @@ impl TodoApp {
         io::stdin()
             .read_line(&mut due_datetime)
             .expect("Cannot read input: ");
-        let due_datetime = DateTime::parse_from_rfc3339(due_datetime.as_str())
-            .map_err(|_| "Invalid datetime format.".to_string())?
+        let due_datetime = DateTime::parse_from_rfc3339(due_datetime.trim())
+            .unwrap()
             .with_timezone(&Utc);
         let task = Task {
             id: self.next_id,
