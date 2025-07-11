@@ -107,16 +107,18 @@ impl TodoApp {
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
-            .expect("Input could not be read.");
-        let id: i32 = input.parse().unwrap();
-        // can do binary search here since the ids are sorted
-        for task in &mut self.tasks {
-            if task.id == id {
-                task.completed = true;
-                return Ok(());
-            }
-        }
-        Err("Could not find task.".to_string())
+            .map_err(|_| "Input could not be read.".to_string())?;
+        let id: i32 = input
+            .trim()
+            .parse()
+            .map_err(|_| "Invalid id input".to_string())?;
+        let task = self
+            .tasks
+            .iter_mut()
+            .find(|task| task.id == id)
+            .ok_or("Could not find task.".to_string())?;
+        task.completed = true;
+        Ok(())
     }
     fn delete(&mut self) -> Result<(), String> {
         print!("Enter id for the task that you would like to delete: ");
@@ -125,15 +127,19 @@ impl TodoApp {
         io::stdin()
             .read_line(&mut input)
             .map_err(|_| "Input could not be read.")?;
-        let id: i32 = input.parse().unwrap();
+        let id: i32 = input
+            .trim()
+            .parse()
+            .map_err(|_| "Invalid id input".to_string())?;
         self.tasks.retain(|task| task.id != id);
         Ok(())
     }
     fn display(&self) -> Result<(), String> {
-        for task in &self.tasks {
+        for task in self.tasks.iter() {
+            println!("====================================");
             println!("Task {}", task.id);
             println!("Task description: {}", task.description);
-            println!("Task due date and time {}", task.due_datetime);
+            println!("Task due date and time: {}", task.due_datetime);
             println!("Completed? {}", if task.completed { "Yes" } else { "No" });
             println!("====================================")
         }
