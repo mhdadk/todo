@@ -24,10 +24,12 @@ impl TodoApp {
         print!("Let's create a new task. First, the description: ");
         io::stdout().flush().unwrap();
         let mut description = String::new();
+        // need the .map_err() because .read_line() does not return Err(String) but
+        // something else
         io::stdin()
             .read_line(&mut description)
-            .expect("Cannot read input: ");
-        print!("Next, the date and time the task is due (in RFC3339 format): ");
+            .map_err(|_| "Could not read description.".to_string())?;
+        print!("Next, the date the task is due (in RFC3339 format): ");
         io::stdout().flush().unwrap();
         let mut due_datetime = String::new();
         io::stdin()
@@ -145,44 +147,51 @@ impl TodoApp {
             println!("(3) Modify an existing task.");
             println!("(4) Delete an existing task.");
             println!("(5) List all incomplete tasks.");
+            println!("(0) Exit.");
             let mut input = String::new();
-            io::stdin()
-                .read_line(&mut input)
-                .expect("Input could not be read.");
-            let opt: i32 = input.trim().parse().expect("Could not parse input.");
-            match opt {
-                1 => {
-                    if let Err(e) = self.add() {
-                        eprintln!("Error adding new task: {}", e);
-                    }
+            if let Ok(_) = io::stdin().read_line(&mut input) {
+                if let Ok(opt) = input.trim().parse() {
+                    match opt {
+                        1 => {
+                            if let Err(e) = self.add() {
+                                eprintln!("Error adding new task: {}", e);
+                            }
+                        }
+                        2 => {
+                            if let Err(e) = self.mark_as_completed() {
+                                eprintln!("Error marking task as completed: {}", e);
+                            }
+                        }
+                        3 => {
+                            if let Err(e) = self.modify() {
+                                eprintln!("Error modifying task: {}", e);
+                            }
+                        }
+                        4 => {
+                            if let Err(e) = self.delete() {
+                                eprintln!("Error deleting task: {}", e);
+                            }
+                        }
+                        5 => {
+                            if let Err(e) = self.display() {
+                                eprintln!("Error showing tasks: {}", e);
+                            }
+                        }
+                        0 => {
+                            println!("Exiting...");
+                            return Ok(());
+                        }
+                        _ => eprintln!("Please choose a number between 1 and 5 (inclusive)."),
+                    };
                 }
-                2 => {
-                    if let Err(e) = self.mark_as_completed() {
-                        eprintln!("Error marking task as completed: {}", e);
-                    }
-                }
-                3 => {
-                    if let Err(e) = self.modify() {
-                        eprintln!("Error modifying task: {}", e);
-                    }
-                }
-                4 => {
-                    if let Err(e) = self.delete() {
-                        eprintln!("Error deleting task: {}", e);
-                    }
-                }
-                5 => {
-                    if let Err(e) = self.display() {
-                        eprintln!("Error showing tasks: {}", e);
-                    }
-                }
-                _ => eprintln!("Invalid input. Please try again."),
-            };
+            } else {
+                eprintln!("Could not read input. Please try again.")
+            }
         }
     }
 }
 
-fn main() {
+fn main() -> () {
     let mut app = TodoApp::new();
-    app.run();
+    let _ = app.run();
 }
