@@ -194,7 +194,7 @@ impl TodoApp {
                     };
                 }
             } else {
-                eprintln!("Could not read input. Please try again.")
+                eprintln!("Could not read input. Please try again.");
             }
         }
     }
