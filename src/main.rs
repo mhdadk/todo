@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
+use chrono::NaiveDateTime;
 use std::io::{self, Write};
 
 struct Task {
     id: i32,
     description: String,
-    due_datetime: DateTime<Utc>,
+    due_datetime: NaiveDateTime,
     completed: bool,
 }
 
@@ -29,15 +29,17 @@ impl TodoApp {
         io::stdin()
             .read_line(&mut description)
             .map_err(|_| "Could not read description.".to_string())?;
-        print!("Next, the date the task is due (in RFC3339 format): ");
+        print!("Next, the date and time the task is due (MM/DD/YYYY HH:MM AM/PM): ");
         io::stdout().flush().unwrap();
         let mut due_datetime = String::new();
         io::stdin()
             .read_line(&mut due_datetime)
-            .expect("Cannot read input: ");
-        let due_datetime = DateTime::parse_from_rfc3339(due_datetime.trim())
-            .unwrap()
-            .with_timezone(&Utc);
+            .map_err(|_| "Could not read due date and time.".to_string())?;
+        // let x = due_datetime.trim();
+        // let y = NaiveDateTime::parse_from_str(due_datetime.trim(), "%m/%d/%Y %I:%M %p");
+        // let z = y.map_err(|_| "Could not parse due date and time.")?;
+        let due_datetime = NaiveDateTime::parse_from_str(due_datetime.trim(), "%m/%d/%Y %I:%M %p")
+            .map_err(|_| "Could not parse due date and time.".to_string())?;
         let task = Task {
             id: self.next_id,
             description: description,
@@ -57,7 +59,7 @@ impl TodoApp {
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
-            .expect("Failed to read line");
+            .map_err(|_| "Failed to read line".to_string())?;
         let id: i32 = input
             .trim()
             .parse()
@@ -65,11 +67,11 @@ impl TodoApp {
 
         // need the .iter_mut() instead of .iter() so that task_opt is &mut T and not
         // &T so that task can be modified later
-        let task_opt = self.tasks.iter_mut().find(|task| task.id == id);
-        let task = match task_opt {
-            Some(x) => x,
-            None => return Err("Could not find task.".to_string()),
-        };
+        let task = self
+            .tasks
+            .iter_mut()
+            .find(|task| task.id == id)
+            .ok_or("Could not find task.".to_string())?;
 
         input.clear();
         print!("Enter new task description (leave empty if unchanged): ");
@@ -83,18 +85,19 @@ impl TodoApp {
         }
 
         input.clear();
-        print!("Enter new task due date and time in RFC3339 format (leave empty if unchanged): ");
+        print!(
+            "Enter new date and time the task is due (MM/DD/YYYY HH:MM AM/PM) (leave empty if unchanged): "
+        );
         io::stdout().flush().unwrap();
+        let mut due_datetime = String::new();
         io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read line");
-        let new_due = input.trim();
-        if !new_due.is_empty() {
-            task.due_datetime = DateTime::parse_from_rfc3339(new_due)
-                .map_err(|_| "Invalid date format.".to_string())?
-                .with_timezone(&Utc);
+            .read_line(&mut due_datetime)
+            .map_err(|_| "Could not read due date and time.".to_string())?;
+        let due_datetime = due_datetime.trim();
+        if !due_datetime.is_empty() {
+            task.due_datetime = NaiveDateTime::parse_from_str(due_datetime, "%m/%d/%Y %I:%M %p")
+                .map_err(|_| "Could not parse due date and time.".to_string())?;
         }
-
         Ok(())
     }
     fn mark_as_completed(&mut self) -> Result<(), String> {
