@@ -78,7 +78,7 @@ impl TodoApp {
         io::stdout().flush().unwrap();
         io::stdin()
             .read_line(&mut input)
-            .expect("Failed to read line");
+            .map_err(|_| "Failed to read line")?;
         let new_desc = input.trim();
         if !new_desc.is_empty() {
             task.description = new_desc.to_string();
@@ -135,7 +135,7 @@ impl TodoApp {
         Ok(())
     }
     fn display(&self) -> Result<(), String> {
-        for task in self.tasks.iter() {
+        for task in self.tasks.iter().filter(|t| !t.completed) {
             println!("====================================");
             println!("Task {}", task.id);
             println!("Task description: {}", task.description);
@@ -192,6 +192,8 @@ impl TodoApp {
                         }
                         _ => eprintln!("Please choose a number between 1 and 5 (inclusive)."),
                     };
+                } else {
+                    eprintln!("Could not parse option. Please try again.")
                 }
             } else {
                 eprintln!("Could not read input. Please try again.");
@@ -200,7 +202,7 @@ impl TodoApp {
     }
 }
 
-fn main() -> () {
+fn main() {
     let mut app = TodoApp::new();
     let _ = app.run();
 }
