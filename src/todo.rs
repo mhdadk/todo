@@ -2,6 +2,10 @@ use super::task::Task;
 use chrono::NaiveDateTime;
 use std::io::{self, Write};
 
+use serde::{Deserialize, Serialize};
+use std::fs;
+
+#[derive(Serialize, Deserialize)]
 pub struct TodoApp {
     tasks: Vec<Task>,
     next_id: i32,
@@ -139,6 +143,20 @@ impl TodoApp {
         }
         io::stdout().flush().unwrap();
         Ok(())
+    }
+    fn save_to_file(&self, path: &str) -> Result<(), String> {
+        let json = serde_json::to_string_pretty(&self)
+            .map_err(|e| format!("Serialization error: {}", e))?;
+        let mut file =
+            fs::File::create(path).map_err(|e| format!("Failed to create file: {}", e))?;
+        file.write_all(json.as_bytes())
+            .map_err(|e| format!("Write error: {}", e))?;
+        Ok(())
+    }
+    fn load_from_file(path: &str) -> Result<Self, String> {
+        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
+        serde_json::from_str(&content).map_err(|e| format!("Deserialization error: {}", e))
     }
     pub fn run(&mut self) -> Result<(), String> {
         loop {
