@@ -13,9 +13,13 @@ pub struct TodoApp {
 
 impl TodoApp {
     pub fn new() -> Self {
-        Self {
-            tasks: Vec::new(),
-            next_id: 0,
+        if fs::exists("tasks.json").unwrap() {
+            Self::load_from_file("tasks.json").unwrap()
+        } else {
+            Self {
+                tasks: Vec::new(),
+                next_id: 0,
+            }
         }
     }
     fn add(&mut self) -> Result<(), String> {
@@ -40,7 +44,7 @@ impl TodoApp {
             .map_err(|_| "Could not parse due date and time.".to_string())?;
         let task = Task {
             id: self.next_id,
-            description: description,
+            description: description.trim().to_string(),
             due_datetime: due_datetime,
             completed: false,
         };
@@ -200,6 +204,7 @@ impl TodoApp {
                         }
                         0 => {
                             println!("Exiting...");
+                            self.save_to_file("tasks.json").unwrap();
                             return Ok(());
                         }
                         _ => eprintln!("Please choose a number between 1 and 5 (inclusive)."),
